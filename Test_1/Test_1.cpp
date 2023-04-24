@@ -371,7 +371,7 @@ struct Thread_Conf
 
 class Server_Http
 {
-	//boost::thread_group threadpool;
+	boost::thread_group threadpool;
 	std::vector<Thread_Conf> Thread_Pool;
 
 public:
