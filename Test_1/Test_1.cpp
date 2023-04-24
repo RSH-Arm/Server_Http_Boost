@@ -359,7 +359,9 @@ public:
 	}
 };
 
-typedef boost::shared_ptr<ip::tcp::socket> socket_ptr;
+//typedef boost::shared_ptr<ip::tcp::socket> socket_ptr;
+
+using socket_ptr = boost::shared_ptr<ip::tcp::socket>;
 
 struct Thread_Conf
 {
@@ -371,8 +373,9 @@ struct Thread_Conf
 
 class Server_Http
 {
-	boost::thread_group threadpool;
-	std::vector<Thread_Conf> Thread_Pool;
+	boost::thread_group			_threadpool;
+	vector<io_service>			_io_service;
+	vector<io_service::work>	_work;
 
 public:
 
@@ -383,7 +386,8 @@ public:
 
 		ip::tcp::acceptor acceptor(service, ip::tcp::endpoint(ip::tcp::v4(), port));
 
-		Thread_Pool.reserve(tp);
+		_io_service.reserve(5);
+		_work.reserve(5);
 
 		Listener(service, acceptor, tp);
 	};
@@ -394,10 +398,12 @@ private:
 	{
 		int i = 0;
 		for (i; i < tp; i++)
-			Thread_Pool.push_back(Thread_Conf{
-				.id_ = i,
-				.thread_ = boost::thread(boost::bind(&Server_Http::Server_Process, this, i))
-				});
+		{
+			_threadpool.create_thread([&_io_service]()
+			{
+				_io_service.at(i).run();
+			});
+		}
 
 		for (i = 0; i < tp; i++)
 			Thread_Pool.at(i).thread_.detach();
