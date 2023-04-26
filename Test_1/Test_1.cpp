@@ -373,6 +373,7 @@ struct Thread_Conf
 
 class Server_Http
 {
+
 	boost::thread_group			_threadpool;
 	vector<io_service>			_io_service;
 	vector<io_service::work>	_work;
@@ -381,13 +382,7 @@ public:
 
 	Server_Http(io_service& service, int port = 3000, int tp = boost::thread::hardware_concurrency() - 6)
 	{
-		std::cout << "Start Server\n";
-		std::cout << "Thread - " << tp << "\n\n";
-
 		ip::tcp::acceptor acceptor(service, ip::tcp::endpoint(ip::tcp::v4(), port));
-
-		_io_service.reserve(5);
-		_work.reserve(5);
 
 		Listener(service, acceptor, tp);
 	};
@@ -396,22 +391,18 @@ private:
 
 	int Listener(io_service& service, ip::tcp::acceptor& acceptor, int tp)
 	{
-		int i = 0;
-		for (i; i < tp; i++)
-		{
-			_threadpool.create_thread([&_io_service]()
-			{
-				_io_service.at(i).run();
-			});
-		}
+		_io_service.reserve(tp);
+		_work.reserve(tp);
 
-		for (i = 0; i < tp; i++)
-			Thread_Pool.at(i).thread_.detach();
+		for (int i = 0; i < tp; i++)
+		{
+			_work.push_back(io_service::work(_io_service[i]));
+			_threadpool.create_thread(boost::bind(&boost::asio::io_service::run, &_io_service[i]));
+		}
 
 		while (true)
 		{
 			socket_ptr sock(new ip::tcp::socket(service));
-
 			acceptor.accept(*sock);
 
 			int id = 0;
@@ -427,6 +418,12 @@ private:
 			Thread_Pool.at(id).task_.push(sock);
 		}
 	}
+
+	void Load_Balancer()
+	{
+
+	}
+
 
 	void Server_Process(int id)
 	{
